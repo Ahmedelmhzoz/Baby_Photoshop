@@ -39,8 +39,8 @@ using  namespace std;
 
 enum enfilters {
     enLoadImage = 1, enGrayScale = 2, enBlackAndWhite = 3, enInvertImage = 4,
-    enFlipImage = 5, enDarkenAndLighten = 6, enRotateImage = 7, enSaveImage = 8,
-    enAppliedFiltersScreen = 9, enExit = 10
+    enFlipImage = 5, enDarkenAndLighten = 6, enRotateImage = 7, enCropImage, enSaveImage = 9,
+    enAppliedFiltersScreen = 10, enExit = 11
 };
 
 stack<Image>stFiltersHistory;
@@ -466,6 +466,70 @@ void InvertImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     ShowEnd(65);
 }
 
+//=================== ++Crop Filter++==================== =
+
+struct stCropFilterData {
+    int x, y, width, height;
+};
+
+stCropFilterData CropImageScreen() {
+
+    GenerateHeader(70, "Crop image screen");
+    stCropFilterData data;
+
+    cout << "Please enter upper left corner point first(the starting point X, Y)\n";
+    cout << '>'; cin >> data.x; cout << ">"; cin >> data.y; 
+    cout << string(70, '_') << '\n';
+    cout << "Please enter the width and height of the part you wanna crop\n>";
+    cin >> data.width; cout << ">"; cin >> data.height;
+
+    return data;
+}
+
+void ValidCropSize(stCropFilterData& data, Image& image) {
+
+    while (data.x + data.width > image.width || data.y + data.height > image.height ||
+        data.x < 0 || data.y < 0 || data.width <= 0 || data.height <= 0) {
+
+        cout << "\n\aError )-:, you will be out of the bounds of the image\n";
+        cout << "please enter new dimensions:\n";
+        cout << "x -> ";
+        cin >> data.x;
+        cout << "\ny -> ";
+        cin >> data.y;
+        cout << "\nWidth -> ";
+        cin >> data.width;
+        cout << "\nHeight -> ";
+        cin >> data.height;
+        cout << '\n';
+    }
+
+}
+
+void CropImageAlgo(stCropFilterData& data, Image& image) {
+    Image CroppedImage(data.width, data.height);
+
+    for (int i = data.x; i < data.x + data.width; i++) {
+        for (int j = data.y; j < data.y + data.height; j++) {
+            for (int RGB = 0; RGB < 3; RGB++) {
+                CroppedImage(i - data.x, j - data.y, RGB) = image(i, j, RGB);
+            }
+        }
+    }
+
+    image = CroppedImage;
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Crop image");
+}
+
+void CropImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
+    stCropFilterData data = CropImageScreen();
+    ValidCropSize(data, vCurrentPicAndItsName[0].first);
+    CropImageAlgo(data, vCurrentPicAndItsName[0].first);
+    ShowEnd(70);
+}
+
 // ===================++ Save & Load Filters ++=====================-
 
 void EnterImagePairWithValidation(pair<Image, string>& pCurrentPicAndItsName) {
@@ -498,12 +562,17 @@ void SaveAnImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     GenerateHeader(65, "Save image screen");
     if (!vCurrentPicAndItsName.empty()) {
-        vector<string> options = { "Save with same name",
-            "Save with different name", "Back to main menu" };
+        vector<string> options = { "Replace the old image with the modified one",
+           "Save with different name and keep the old version", "Back to main menu" };
         int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
+
         switch (ChoiceNum) {
         case 1: {
             vCurrentPicAndItsName[0].first.saveImage(vCurrentPicAndItsName[0].second);// == image.saveImage(selected_image);
+            vAppliedFilters.clear();
+            while (!stFiltersHistory.empty()) {
+                stFiltersHistory.pop();
+            }
             ShowEnd(65);
             break;
         }
@@ -633,7 +702,7 @@ int ShowMenuScreenAndTackChoice() {
     GenerateHeader(65, "Main menu screen");
     vector<string> options = { "Load new image", "Grayscale filter","Black and white filter",
         "Invert image colors filter", "Flip image filter", "Brightness filter",
-        "Rotate image filter", "Save current image", "Show applied filters", "Exit" };
+        "Rotate image filter", "Crop image", "Save current image", "Show applied filters", "Exit"};
     // We will take user choice by this function -> GenerateOptionsListAndChoose();
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
 
@@ -678,16 +747,17 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
 
     switch (ChoiceNum) {
     case enfilters::enLoadImage: LoadAnImage(vCurrentPicAndItsName); break;
-    case enfilters::enFlipImage: FlipImage(vCurrentPicAndItsName); break;
     case enfilters::enGrayScale: Grayscale(vCurrentPicAndItsName); break;
-    case enfilters::enInvertImage: InvertImage(vCurrentPicAndItsName); break;
-    case enfilters::enRotateImage: RotateImage(vCurrentPicAndItsName); break;
     case enfilters::enBlackAndWhite: BlackAndWhite(vCurrentPicAndItsName); break;
+    case enfilters::enInvertImage: InvertImage(vCurrentPicAndItsName); break;
+    case enfilters::enFlipImage: FlipImage(vCurrentPicAndItsName); break;
     case enfilters::enDarkenAndLighten: DarkenAndLighten(vCurrentPicAndItsName); break;
+    case enfilters::enRotateImage: RotateImage(vCurrentPicAndItsName); break;
+    case enfilters::enCropImage: CropImage(vCurrentPicAndItsName); break;
     case enfilters::enSaveImage: SaveAnImage(vCurrentPicAndItsName); break;
     case enfilters::enAppliedFiltersScreen: FiltersHistory(vCurrentPicAndItsName);  break;
-    case enfilters::enExit: return 10;
-    default: UnValidNumberMessage(1, 10);
+    case enfilters::enExit: return 11;
+    default: UnValidNumberMessage(1, 11);
         MenuScreenAndOperatAFilter(vCurrentPicAndItsName);
     } 
     return ChoiceNum;
@@ -698,7 +768,7 @@ void StartFilterProgram(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     int Choice;
     ClearScreen();
 
-    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 10);
+    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 11);
 
     Exit(vCurrentPicAndItsName);
 }
