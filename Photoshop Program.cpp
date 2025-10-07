@@ -30,6 +30,7 @@
 ****************************************************/
 #include <iostream>
 #include <vector>
+#include <stack>
 #include <string>
 #include <windows.h>
 #include <cstdlib>
@@ -39,14 +40,18 @@ using  namespace std;
 enum enfilters {
     enLoadImage = 1, enGrayScale = 2, enBlackAndWhite = 3, enInvertImage = 4,
     enFlipImage = 5, enDarkenAndLighten = 6, enRotateImage = 7, enSaveImage = 8,
-    enExit = 9
+    enAppliedFiltersScreen = 9, enExit = 10
 };
+
+stack<Image>stFiltersHistory;
+vector<string> vAppliedFilters;
 
 // ==================++ Declaration Filter ++=====================
 
 enfilters ShowMenuScreen();
 int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsName);
 void StartFilterProgram(vector<pair<Image, string>>& vCurrentPicAndItsName);
+void FiltersHistory(vector<pair<Image, string>>& vCurrentPicAndItsName);
 
 // ==================++ General helpful functions and messages ++=====================
 
@@ -77,14 +82,23 @@ void AnotherSound() {
 
 void ShowEnd(int NumOfUnderScore) {
     cout << "\nThe process is done successfully :)\n";
-    cout << "Please press any key to go  to main menu....\n";
+    cout << "Please press any key to go to main menu....\n";
     for (int i = 0; i < NumOfUnderScore; i++) cout << '_';
     cout << "\n>";
     SuccessSound();
     system("pause>0");
 }
 
-int GenerateOptionsListAndChoose(vector <string>& options, int NumOfUnderScores) {
+void ShowEndInAppliedScreen(int NumOfUnderScore) {
+    cout << "\nThe process is done successfully :)\n";
+    cout << "Please press any key to go to applied filters screen....\n";
+    for (int i = 0; i < NumOfUnderScore; i++) cout << '_';
+    cout << "\n>";
+    SuccessSound();
+    system("pause>0");
+}
+
+int GenerateOptionsListAndChoose(const vector <string>& options, int NumOfUnderScores) {
     cout << "Please choose one of this options by enter the choice number..\n";
     cout << string(NumOfUnderScores, '_') << '\n';
     int size = options.size();
@@ -94,6 +108,39 @@ int GenerateOptionsListAndChoose(vector <string>& options, int NumOfUnderScores)
     cout << string(NumOfUnderScores, '_') << '\n';
     cout << '>';
     int num; cin >> num;
+    return num;
+}
+
+int AppliedFiltersScreen(int NumOfUnderScores, vector<pair<Image, string>>& vCurrentPicAndItsName) {
+    ClearScreen();
+    GenerateHeader(NumOfUnderScores, "Applied Filter Screen");
+
+    if (!vAppliedFilters.empty())
+    {
+        cout << "Currnet Image: " << vCurrentPicAndItsName[0].second << '\n';
+        cout << string(NumOfUnderScores, '_') << '\n';
+        string title = "|       Applied Filters       |";
+        int NumOfSpaces = (NumOfUnderScores - title.size()) / 2;
+        cout << string(NumOfSpaces, ' ') << title << '\n';
+        cout << string(NumOfSpaces, ' ');  cout << "|_____________________________|\n\n";
+        for (int i = 0; i < vAppliedFilters.size(); i++) {
+            cout << '[' << i + 1 << "] " << vAppliedFilters[i] << '\n';
+        }
+    }
+    else {
+        cout << "\aThere are no filters applied to the image yet )-:\n\n";
+        cout << "Please press any key to go back to main menu....\n";
+        cout << string(NumOfUnderScores, '_') << '\n';
+        cout << '>';
+        system("pause>0");
+        MenuScreenAndOperatAFilter(vCurrentPicAndItsName);
+        return 0;
+    }
+
+    cout << string(NumOfUnderScores, '_') << '\n';
+    cout << "[1] Clear Image\t    [2] Undo\t      [3] Back to menu\n\n>";
+    int num; cin >> num;
+
     return num;
 }
 
@@ -111,8 +158,8 @@ bool IsExtensionFalse(string FileName) {
     return false;
 }
 
-bool CheakIfThereArentCurrnetPic(vector<pair<Image, string>>& CurrentPicAndItsName) {
-    if (CurrentPicAndItsName.empty()) return true;
+bool CheakIfThereArentCurrnetPic(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+    if (vCurrentPicAndItsName.empty()) return true;
 
     return false;
 }
@@ -153,6 +200,9 @@ void VerticalFlip(Image& image) {
             }
         }
     }
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Vertical flip");
+
     ShowEnd(65);
     // Flip image vertically by swapping rows
 }
@@ -166,11 +216,15 @@ void HorizontalFlip(Image& image) {
             }
         }
     }
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Horizontal flip");
+
     ShowEnd(65);
     // Flip image horizontally by swapping column
 }
 
 void FlipImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
     GenerateHeader(65, "Flip image screen");
     if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
         return void(ThereIsNoPicMessage());
@@ -190,6 +244,7 @@ void FlipImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 // ==================++ GrayScale Filter ++=====================
 
 void Grayscale(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
     GenerateHeader(60, "Grayscale filter screen");
     if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
         return void(ThereIsNoPicMessage());
@@ -208,6 +263,9 @@ void Grayscale(vector<pair<Image, string>>& vCurrentPicAndItsName) {
             }
         }
     }
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Gray Scale");
+
     vCurrentPicAndItsName[0].first = image;
     ShowEnd(60);
 }
@@ -215,45 +273,41 @@ void Grayscale(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 // ==================++ BlackAndWhite Filter ++=====================
 
 void BlackAndWhite(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
     GenerateHeader(65, "Black and White filter screen");
     if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
         return void(ThereIsNoPicMessage());
     }
-    for (int i = 0; i < vCurrentPicAndItsName[0].first.width; i++) {
-        for (int j = 0; j < vCurrentPicAndItsName[0].first.height; j++) {
+    Image image;
+    image = vCurrentPicAndItsName[0].first;
+    for (int i = 0; i < image.width; i++) {
+        for (int j = 0; j < image.height; j++) {
             unsigned int total = 0;
             for (int RGB = 0; RGB < 3; RGB++) {
-                total += vCurrentPicAndItsName[0].first(i, j, RGB);
+                total += image(i, j, RGB);
             }
             if (total <= 382) {
-                vCurrentPicAndItsName[0].first.setPixel(i, j, 0, 0);
-                vCurrentPicAndItsName[0].first.setPixel(i, j, 1, 0);
-                vCurrentPicAndItsName[0].first.setPixel(i, j, 2, 0);
+                image.setPixel(i, j, 0, 0);
+                image.setPixel(i, j, 1, 0);
+                image.setPixel(i, j, 2, 0);
                 continue;
             }
-            vCurrentPicAndItsName[0].first.setPixel(i, j, 0, 255);
-            vCurrentPicAndItsName[0].first.setPixel(i, j, 1, 255);
-            vCurrentPicAndItsName[0].first.setPixel(i, j, 2, 255);
+            image.setPixel(i, j, 0, 255);
+            image.setPixel(i, j, 1, 255);
+            image.setPixel(i, j, 2, 255);
         }
     }
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Black And White");
+
+    vCurrentPicAndItsName[0].first = image;
     ShowEnd(65);
 }
-
 
 // ==================++ LightenAndDarken Filter ++=====================
 
-void DarkenAlgo(Image& img1, float LevelOfBrightness) {
-    for (int i = 0; i < img1.width; i++) {
-        for (int j = 0; j < img1.height; j++) {
-            for (int RGB = 0; RGB < 3; RGB++) {
-                img1(i, j, RGB) *= LevelOfBrightness;
-            }
-        }
-    }
-    ShowEnd(65);
-}
+void LightenAndDarkenAlgo(Image& image, float LevelOfBrightness, bool IsLighten) {
 
-void LightenAlgo(Image& image, float LevelOfBrightness) {
     for (int i = 0; i < image.width; i++) {
         for (int j = 0; j < image.height; j++) {
             for (int RGB = 0; RGB < 3; RGB++) {
@@ -263,6 +317,10 @@ void LightenAlgo(Image& image, float LevelOfBrightness) {
             }
         }
     }
+    stFiltersHistory.push(image);
+    if (IsLighten) vAppliedFilters.push_back("Lighten filter");
+    else vAppliedFilters.push_back("Darken filter");
+
     ShowEnd(65);
 }
 
@@ -273,10 +331,10 @@ void DarkenLevel(Image& image) {
         "25%", "50%", "75%", "100% Make completely black" };
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
     switch (ChoiceNum) {
-    case 1: DarkenAlgo(image, .75); break;
-    case 2: DarkenAlgo(image, .5); break;
-    case 3:  DarkenAlgo(image, .25); break;
-    case 4: DarkenAlgo(image, 0); break;
+    case 1: LightenAndDarkenAlgo(image, .75, false); break;
+    case 2: LightenAndDarkenAlgo(image, .5, false); break;
+    case 3:  LightenAndDarkenAlgo(image, .25, false); break;
+    case 4: LightenAndDarkenAlgo(image, 0, false); break;
     default: UnValidNumberMessage(1, 4); DarkenLevel(image);
     }
 }
@@ -287,16 +345,17 @@ void LightenLevel(Image& image) {
     vector<string> options = { "25%", "50%", "75%", "100%" };
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
     switch (ChoiceNum) {
-    case 1: LightenAlgo(image, 1.25); break;
-    case 2: LightenAlgo(image, 1.5); break;
-    case 3:  LightenAlgo(image, 1.75); break;
-    case 4: LightenAlgo(image, 2); break;
+    case 1: LightenAndDarkenAlgo(image, 1.25, true); break;
+    case 2: LightenAndDarkenAlgo(image, 1.5, true); break;
+    case 3:  LightenAndDarkenAlgo(image, 1.75, true); break;
+    case 4: LightenAndDarkenAlgo(image, 2, true); break;
     default: UnValidNumberMessage(1, 4); LightenLevel(image);
 
     }
 }
 
 void DarkenAndLighten(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
     GenerateHeader(65, "Darken and lighten screen");
     if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
         return void(ThereIsNoPicMessage());
@@ -323,6 +382,9 @@ void Rotate90DegreesAlgo(Image& image) {
         }
     }
     image = temp;
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Rotate (90) degree clockwise");
+
     ShowEnd(65);
 }
 
@@ -336,6 +398,9 @@ void Rotate180DegreesAlgo(Image& image) {
         }
     }
     image = temp;
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Rotate (180) degree clockwise");
+
     ShowEnd(65);
 }
 
@@ -349,16 +414,20 @@ void Rotate270DegreesAlgo(Image& image) {
         }
     }
     image = temp;
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Rotate (270) degree clockwise");
+
     ShowEnd(65);
 }
 
 void RotateImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
     GenerateHeader(65, "Rotate image screen");
     if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
         return void(ThereIsNoPicMessage());
     }
-    vector<string> options = { "Rotate the image 90 degrees clockwise",
-        "Rotate the image 180 degrees clockwise", "Rotate the image 270 degrees clockwise",
+    vector<string> options = { "Rotate the image 90 degree clockwise",
+        "Rotate the image 180 degree clockwise", "Rotate the image 270 degree clockwise",
     "Back to menu" };
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
     switch (ChoiceNum) {
@@ -374,24 +443,30 @@ void RotateImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 // ===================++ Invert Filters ++=====================
 
 void InvertImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
     GenerateHeader(65, "Invert image screen");
     if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
         return void(ThereIsNoPicMessage());
     }
+    Image image;
+    image = vCurrentPicAndItsName[0].first;
     //vCurrentPic[0].first.width = image.width, becase the first of pair is Image (object)
-    for (int i = 0; i < vCurrentPicAndItsName[0].first.width; ++i) {
-        for (int j = 0; j < vCurrentPicAndItsName[0].first.height; ++j) {
+    for (int i = 0; i < image.width; ++i) {
+        for (int j = 0; j < image.height; ++j) {
             for (int RGB = 0; RGB < 3; ++RGB) {
-                vCurrentPicAndItsName[0].first(i, j, RGB) =
-                    255 - vCurrentPicAndItsName[0].first(i, j, RGB);
+                image(i, j, RGB) =
+                    255 - image(i, j, RGB);
             }
         }
     }
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Invert Colors Filter");
+
+    vCurrentPicAndItsName[0].first = image;
     ShowEnd(65);
 }
 
-
-// ===================++ Save And Load Filters ++=====================
+// ===================++ Save & Load Filters ++=====================-
 
 void EnterImagePairWithValidation(pair<Image, string>& pCurrentPicAndItsName) {
 
@@ -420,27 +495,26 @@ void EnterImagePairWithValidation(pair<Image, string>& pCurrentPicAndItsName) {
     }
 }
 void SaveAnImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
     GenerateHeader(65, "Save image screen");
-    //Firstly Check if The Vector is Filled or not (There is currnet picture or not)
     if (!vCurrentPicAndItsName.empty()) {
-        // if there is a current picture ask user if he wants to save it with the same name or with different name
         vector<string> options = { "Save with same name",
             "Save with different name", "Back to main menu" };
         int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
         switch (ChoiceNum) {
         case 1: {
-            // if he chose 1 then he wanna save it with the same name, so we save the current pair in the vec and clear it
             vCurrentPicAndItsName[0].first.saveImage(vCurrentPicAndItsName[0].second);// == image.saveImage(selected_image);
-
             ShowEnd(65);
             break;
         }
         case 2: {
-            // if he chose 2 then he wanna save it with different name, so we should ask him to enter the new name
             cout << "\nPlease enter a new name for the edited image.\n";
             cout << "and specify extension [.jpg, .bmp, .png, .tga]: \n>";
-            // here, to handle spaces we should firstly igonre the input and take the new name with getline(), and also
-            // we need to check if the extension he entered is correct or not
+
+            ////
+            string OriginalImage = vCurrentPicAndItsName[0].second;
+            ////
+
             cin.ignore();
             getline(cin, vCurrentPicAndItsName[0].second);
             while (IsExtensionFalse(vCurrentPicAndItsName[0].second)) {
@@ -451,15 +525,19 @@ void SaveAnImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
             // Then save it with the same object and the new name he enterd
             vCurrentPicAndItsName[0].first.saveImage(vCurrentPicAndItsName[0].second);// == image.saveImage(selected_image);
 
+            ////
+            vCurrentPicAndItsName[0].second = OriginalImage;
+            ////
+
+
             ShowEnd(65); break;
         }
-        case 3: MenuScreenAndOperatAFilter(vCurrentPicAndItsName); break; // If he chose 3 then he will back to menu
+        case 3: MenuScreenAndOperatAFilter(vCurrentPicAndItsName); break;
 
-        default: UnValidNumberMessage(1, 3); SaveAnImage(vCurrentPicAndItsName); // if he chose any thing other than(1 : 3)
+        default: UnValidNumberMessage(1, 3); SaveAnImage(vCurrentPicAndItsName); ////
         }
     }
     else {
-        // And here, if there is no image at the beginning at all
         cout << "\nError )-:, Please upload an image firstly then save it after editing\n";
         cout << "\aPlease press any key to go back to main menu then upload an image....\n>";
         system("pause>0");
@@ -467,6 +545,7 @@ void SaveAnImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 }
 
 void LoadAnImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
     GenerateHeader(65, "Load image screen");
     // we at first check if the vector is not empty (there is current image)
     if (!vCurrentPicAndItsName.empty()) {
@@ -495,14 +574,56 @@ void LoadAnImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     vCurrentPicAndItsName.clear();
     cout << "\nPlease enter new image with specify extension:  \n>";
 
-    //I chose vector<pair<image, string>> because in some filters we will need to have more than one image
-    // at the same time in one place, such as the image merging filter.
     pair<Image, string> PCurrentPicAndItsName; // first == image // second == filename
     //fill The pair by this function -> EnterTheImageName(), and push it in vector
     EnterImagePairWithValidation(PCurrentPicAndItsName);
     vCurrentPicAndItsName.push_back(PCurrentPicAndItsName);
 
+    vAppliedFilters.clear();
+    while (!stFiltersHistory.empty()) {
+        stFiltersHistory.pop();
+    }
+    //
     ShowEnd(65);
+}
+
+// ===================++ Filters history ++=====================
+
+void ClearImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
+    vAppliedFilters.clear();
+    while (!stFiltersHistory.empty()) { stFiltersHistory.pop(); }
+
+    Image image;
+    image.loadNewImage(vCurrentPicAndItsName[0].second);
+    vCurrentPicAndItsName[0].first = image;
+
+    ShowEnd(65);
+}
+
+void Undo(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
+    stFiltersHistory.pop();
+
+    if (!stFiltersHistory.empty()) vCurrentPicAndItsName[0].first = stFiltersHistory.top();
+    else vCurrentPicAndItsName[0].first.loadNewImage(vCurrentPicAndItsName[0].second); // == image.loadNewImage(selected_image);
+
+    vAppliedFilters.pop_back();
+
+    if (!stFiltersHistory.empty()) { ShowEndInAppliedScreen(65); FiltersHistory(vCurrentPicAndItsName); }
+    else ShowEnd(65);
+}
+
+void FiltersHistory(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
+    int Choice = AppliedFiltersScreen(65, vCurrentPicAndItsName);
+    if (!Choice) return;
+    switch (Choice) {
+    case 1: ClearImage(vCurrentPicAndItsName); break;
+    case 2: Undo(vCurrentPicAndItsName); break;
+    case 3: MenuScreenAndOperatAFilter(vCurrentPicAndItsName);   break;
+    default: UnValidNumberMessage(1, 3); FiltersHistory(vCurrentPicAndItsName);
+    }
 }
 
 // ===================++ Menu screen functions ++=====================
@@ -512,7 +633,7 @@ int ShowMenuScreenAndTackChoice() {
     GenerateHeader(65, "Main menu screen");
     vector<string> options = { "Load new image", "Grayscale filter","Black and white filter",
         "Invert image colors filter", "Flip image filter", "Brightness filter",
-        "Rotate image filter", "Save current image", "Exit" };
+        "Rotate image filter", "Save current image", "Show applied filters", "Exit" };
     // We will take user choice by this function -> GenerateOptionsListAndChoose();
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
 
@@ -522,9 +643,6 @@ int ShowMenuScreenAndTackChoice() {
 void Exit(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     ClearScreen();
     char confirmation;
-    // First, we will check if there is a current image or not
-    // If there is, we will ask the user to confirm the operation
-    // Otherwise, the user should return to the menu, save it first, and then exit
     if (!CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
         cout << "Are you sure to exit the program ?\n";
         cout << "You didn't save the current image, and it will not be saved )-:\n";
@@ -551,8 +669,8 @@ void Exit(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     }
     else
         PuttyEndingMessage();
-
 }
+
 
 int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
@@ -567,10 +685,11 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
     case enfilters::enBlackAndWhite: BlackAndWhite(vCurrentPicAndItsName); break;
     case enfilters::enDarkenAndLighten: DarkenAndLighten(vCurrentPicAndItsName); break;
     case enfilters::enSaveImage: SaveAnImage(vCurrentPicAndItsName); break;
-    case enfilters::enExit: return 9;
-    default: UnValidNumberMessage(1, 9);
+    case enfilters::enAppliedFiltersScreen: FiltersHistory(vCurrentPicAndItsName);  break;
+    case enfilters::enExit: return 10;
+    default: UnValidNumberMessage(1, 10);
         MenuScreenAndOperatAFilter(vCurrentPicAndItsName);
-    }
+    } 
     return ChoiceNum;
 }
 
@@ -579,7 +698,7 @@ void StartFilterProgram(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     int Choice;
     ClearScreen();
 
-    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 9);
+    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 10);
 
     Exit(vCurrentPicAndItsName);
 }
