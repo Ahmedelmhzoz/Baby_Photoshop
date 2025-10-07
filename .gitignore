@@ -1,0 +1,15 @@
+.vs/
+build/
+bin/
+Assignment 1/
+x64/
+0
+.idea/
+cmake-build-*/
+CMakeLists.txt.user
+*.iml
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+.vs/
