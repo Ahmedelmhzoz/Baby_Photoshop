@@ -39,8 +39,13 @@ using  namespace std;
 
 enum enfilters {
     enLoadImage = 1, enGrayScale = 2, enBlackAndWhite = 3, enInvertImage = 4,
-    enFlipImage = 5, enDarkenAndLighten = 6, enRotateImage = 7, enCropImage, enResize = 9, enSaveImage = 10,
-    enAppliedFiltersScreen = 11, enExit = 12
+    enFlipImage = 5, enDarkenAndLighten = 6, enRotateImage = 7, enCropImage, enResize = 9, enMerge = 10,
+    enSaveImage = 11, enAppliedFiltersScreen = 12, enExit = 13
+    
+};
+
+struct stCropFilterData {
+    int x, y, width, height;
 };
 
 stack<Image>stFiltersHistory;
@@ -52,6 +57,7 @@ enfilters ShowMenuScreen();
 int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsName);
 void StartFilterProgram(vector<pair<Image, string>>& vCurrentPicAndItsName);
 void FiltersHistory(vector<pair<Image, string>>& vCurrentPicAndItsName);
+void EnterImageDataWithValidation(Image& image, string& filename);
 
 // ==================++ General helpful functions and messages ++=====================
 
@@ -468,10 +474,6 @@ void InvertImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
 //=================== ++Crop Filter++==================== =
 
-struct stCropFilterData {
-    int x, y, width, height;
-};
-
 stCropFilterData CropImageScreen() {
 
     GenerateHeader(70, "Crop image screen");
@@ -511,7 +513,7 @@ void CropImageAlgo(stCropFilterData& data, Image& image) {
 
     for (int i = data.x; i < data.x + data.width; i++) {
         for (int j = data.y; j < data.y + data.height; j++) {
-            for (int RGB = 0; RGB < 3; RGB++) {
+            for (int RGB = 0; RGB < 3; RGB++) {                 
                 CroppedImage(i - data.x, j - data.y, RGB) = image(i, j, RGB);
             }
         }
@@ -535,6 +537,7 @@ void ResizeAlgo(Image& image, int NewWidth, int Newheight) {
 
     int oldWidth = image.width, oldHeight = image.height; float xScale, yScale;
   
+    if (oldWidth == NewWidth && oldHeight == Newheight)  return;
 
     xScale = (float)oldWidth / NewWidth;
     yScale = (float)oldHeight / Newheight;
@@ -588,8 +591,8 @@ void RatioAlgoAndinterface(Image &image) {
     }
 
     // if he choosed 100 in reduction the image will disappear so we check here first
-    int width = max(1, (int) ( image.width + (image.width * ratio) ) ); 
-    int height = max(1, (int) ( image.height + (image.height * ratio) ) );
+    int width = max(1, (int) round( image.width + image.width * ratio) ); 
+    int height = max(1, (int) round( image.height + image.height * ratio) );
 
     ResizeAlgo(image, width, height); 
 
@@ -602,7 +605,7 @@ void ResizeScreen(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     GenerateHeader(65, "Resize image screen");
     vector<string> options = { "enter new dimensions" , "enter a ratio of reduction or increase" , "Back to menu"};
 
-    int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
+    int ChoiceNum = GenerateOptionsListAndChoose(options, 65); bool ReturnedToMenu = false;
 
     switch (ChoiceNum) {
     case 1:
@@ -614,19 +617,91 @@ void ResizeScreen(vector<pair<Image, string>>& vCurrentPicAndItsName) {
         ResizeAlgo(image, width, height); break; 
     }
     case 2:  RatioAlgoAndinterface(image); break;
-    case 3:  MenuScreenAndOperatAFilter(vCurrentPicAndItsName);   break;
+    case 3:  MenuScreenAndOperatAFilter(vCurrentPicAndItsName); ReturnedToMenu = true;  break;
     default: UnValidNumberMessage(1, 3); ResizeScreen(vCurrentPicAndItsName);
     }
 
-    stFiltersHistory.push(image);
-    vAppliedFilters.push_back("Resize image");
+    if (!ReturnedToMenu) {
+        stFiltersHistory.push(image);
+        vAppliedFilters.push_back("Resize image");
+        ShowEnd(65);
+    }
+}
 
+// ===================++ Merge filter ++=====================
+
+void MergeAlgo(Image& image, Image& image2) {
+
+    for (int i = 0; i < image.width; i++) {
+        for (int j = 0; j < image.height; j++) {
+            for (int RGB = 0; RGB < 3; RGB++) {
+                image(i, j, RGB) = (image2(i, j, RGB) + image(i, j, RGB)) / 2;
+            }
+        }
+    }
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Merge images screen");
     ShowEnd(65);
+}
+
+void MergeCommonArea(Image& image, Image& image2) {
+    int commonW = min(image.width, image2.width);
+    int commonH = min(image.height, image2.height);
+    stCropFilterData data, data2;
+
+    data.x = (image.width - commonW) / 2;
+    data.y = (image.height - commonH) / 2;
+    data.width = commonW;
+    data.height = commonH;
+
+    data2.x = (image2.width - commonW) / 2;
+    data2.y = (image2.height - commonH) / 2;
+    data2.width = commonW;
+    data2.height = commonH;
+
+    CropImageAlgo(data, image);
+    CropImageAlgo(data2, image2);
+    MergeAlgo(image, image2);
+
+}
+
+void ResizeMerge(Image& image, Image& image2) {
+    int maxW = max(image.width, image2.width);
+    int maxH = max(image.height, image2.height);
+    ResizeAlgo(image, maxW, maxH);
+    ResizeAlgo(image2, maxW, maxH);
+    MergeAlgo(image, image2);
+}
+
+void MergeImages(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
+    Image& image = vCurrentPicAndItsName[0].first;
+    GenerateHeader(65, "Merge images screen");
+    Image image2; string Image2name;
+    cout << "\nPlease enter a new image to be merged with the current image\n>";
+    EnterImageDataWithValidation(image2, Image2name);
+
+    if (image.width == image2.width && image.height == image2.height) {
+        MergeAlgo(image, image2);
+        ShowEnd(65);
+        return;
+    }
+    cout << '\n';
+    vector<string> options = { "Resize images and merge",
+    "Merge common area", "Back to menu" };
+    int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
+
+    switch (ChoiceNum) {
+    case 1:   ResizeMerge(image, image2);  break;
+    case 2:  MergeCommonArea(image, image2); break;
+    case 3:  MenuScreenAndOperatAFilter(vCurrentPicAndItsName); break;
+    default: UnValidNumberMessage(1, 3); MergeImages(vCurrentPicAndItsName);
+    }
 }
 
 // ===================++ Save & Load Filters ++=====================-
 
-void EnterImagePairWithValidation(pair<Image, string>& pCurrentPicAndItsName) {
+void EnterImageDataWithValidation(Image& image, string &filename) {
 
     if (cin.peek() == '\n') 
         cin.ignore();
@@ -634,16 +709,16 @@ void EnterImagePairWithValidation(pair<Image, string>& pCurrentPicAndItsName) {
     bool success = false;
     while (!success)
     {
-        getline(cin, pCurrentPicAndItsName.second);
+        getline(cin, filename);
 
-        if (IsExtensionFalse(pCurrentPicAndItsName.second)) {
+        if (IsExtensionFalse(filename)) {
             cout << "\a";
             cout << "\nError )-:, Please enter a valid extension [.jpg, .bmp, .png, .tga]\n>";
             continue;
         }
 
         try {
-            pCurrentPicAndItsName.first.loadNewImage(pCurrentPicAndItsName.second);
+            image.loadNewImage(filename);
             success = true;
         }
         catch (...) {
@@ -739,7 +814,7 @@ void LoadAnImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     pair<Image, string> PCurrentPicAndItsName; // first == image // second == filename
     //fill The pair by this function -> EnterTheImageName(), and push it in vector
-    EnterImagePairWithValidation(PCurrentPicAndItsName);
+    EnterImageDataWithValidation(PCurrentPicAndItsName.first, PCurrentPicAndItsName.second);
     vCurrentPicAndItsName.push_back(PCurrentPicAndItsName);
 
     vAppliedFilters.clear();
@@ -827,7 +902,8 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
     GenerateHeader(65, "Main menu screen");
     vector<string> options = { "Load new image", "Grayscale filter","Black and white filter",
         "Invert image colors filter", "Flip image filter", "Brightness filter",
-        "Rotate image filter", "Crop image", "Resize image", "Save current image", "Show applied filters", "Exit" };
+        "Rotate image filter", "Crop image", "Resize image", "Merge Images screen",
+        "Save current image", "Show applied filters", "Exit" };
     
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
 
@@ -841,10 +917,11 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
     case enfilters::enRotateImage: RotateImage(vCurrentPicAndItsName); break;
     case enfilters::enCropImage: CropImage(vCurrentPicAndItsName); break;
     case enfilters::enResize: ResizeScreen(vCurrentPicAndItsName); break;
+    case enfilters::enMerge: MergeImages(vCurrentPicAndItsName); break;
     case enfilters::enSaveImage: SaveAnImage(vCurrentPicAndItsName); break;
     case enfilters::enAppliedFiltersScreen: FiltersHistory(vCurrentPicAndItsName);  break;
-    case enfilters::enExit: return 12;
-    default: UnValidNumberMessage(1, 12);
+    case enfilters::enExit: return 13;
+    default: UnValidNumberMessage(1, 13);
         MenuScreenAndOperatAFilter(vCurrentPicAndItsName);
     } 
     return ChoiceNum;
@@ -855,7 +932,7 @@ void StartFilterProgram(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     int Choice;
     ClearScreen();
 
-    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 12);
+    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 13);
 
     Exit(vCurrentPicAndItsName);
 }
