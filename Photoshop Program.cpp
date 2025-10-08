@@ -39,8 +39,8 @@ using  namespace std;
 
 enum enfilters {
     enLoadImage = 1, enGrayScale = 2, enBlackAndWhite = 3, enInvertImage = 4,
-    enFlipImage = 5, enDarkenAndLighten = 6, enRotateImage = 7, enCropImage, enSaveImage = 9,
-    enAppliedFiltersScreen = 10, enExit = 11
+    enFlipImage = 5, enDarkenAndLighten = 6, enRotateImage = 7, enCropImage, enResize = 9, enSaveImage = 10,
+    enAppliedFiltersScreen = 11, enExit = 12
 };
 
 stack<Image>stFiltersHistory;
@@ -516,10 +516,7 @@ void CropImageAlgo(stCropFilterData& data, Image& image) {
             }
         }
     }
-
     image = CroppedImage;
-    stFiltersHistory.push(image);
-    vAppliedFilters.push_back("Crop image");
 }
 
 void CropImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
@@ -527,14 +524,111 @@ void CropImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     stCropFilterData data = CropImageScreen();
     ValidCropSize(data, vCurrentPicAndItsName[0].first);
     CropImageAlgo(data, vCurrentPicAndItsName[0].first);
+    stFiltersHistory.push(vCurrentPicAndItsName[0].first);
+    vAppliedFilters.push_back("Crop image");
     ShowEnd(70);
+}
+    
+// ===================++ Ressize filter ++=====================
+
+void ResizeAlgo(Image& image, int NewWidth, int Newheight) {
+
+    int oldWidth = image.width, oldHeight = image.height; float xScale, yScale;
+  
+
+    xScale = (float)oldWidth / NewWidth;
+    yScale = (float)oldHeight / Newheight;
+    Image newImage(NewWidth, Newheight);
+
+    for (int i = 0; i < NewWidth; i++) {
+        for (int j = 0; j < Newheight; j++) {
+            float TempI = round((i + 1) * xScale) - 1, Tempj = round((j + 1) * yScale) - 1;
+            // validation
+            TempI = max(0.0f, TempI); TempI = min(oldWidth - 1, TempI);
+            Tempj = max(0.0f, Tempj); Tempj = min(oldHeight - 1, Tempj);
+            for (int RGB = 0; RGB < 3; RGB++) {
+                newImage(i, j, RGB) = image((int)TempI, (int)Tempj, RGB);
+            }
+        }
+    }
+
+    image = newImage;
+}
+
+float RatioMessageAndScalePercentage(bool IsReduction) {
+
+    float ratio = 1.0;
+    cout << "\nPlease enter a number between 1 and 100 (It expresses a ratio)\n";
+    do {
+        cin >> ratio;
+        if (ratio < 1 || ratio > 100)
+            cout << "\aError )-:, Please enter a number between 1 and 100\n";
+    } while (ratio < 1 || ratio > 100);
+    
+    if (IsReduction) ratio *= -1;
+    return (ratio / 100.0);
+}
+
+void RatioAlgoAndinterface(Image &image) {
+
+    GenerateHeader(65, "Ratio entry screen");
+    vector<string> options = { "Reduction" , "Increse" };
+    int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
+    float ratio = 0.0;
+
+    if (ChoiceNum == 1) {
+        ratio = RatioMessageAndScalePercentage(true);
+    }
+    else if (ChoiceNum == 2) {
+        ratio = RatioMessageAndScalePercentage(false);
+    }
+    else {
+        UnValidNumberMessage(1, 2); RatioAlgoAndinterface(image); 
+        return;
+    }
+
+    // if he choosed 100 in reduction the image will disappear so we check here first
+    int width = max(1, (int) ( image.width + (image.width * ratio) ) ); 
+    int height = max(1, (int) ( image.height + (image.height * ratio) ) );
+
+    ResizeAlgo(image, width, height); 
+
+}
+
+void ResizeScreen(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+
+    
+    Image& image = vCurrentPicAndItsName[0].first;
+    GenerateHeader(65, "Resize image screen");
+    vector<string> options = { "enter new dimensions" , "enter a ratio of reduction or increase" , "Back to menu"};
+
+    int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
+
+    switch (ChoiceNum) {
+    case 1:
+    {
+        GenerateHeader(65, "New dimensions entry screen");
+        int width, height; cout << "\nPlease enter new dimensions (New width and height)\n>"; 
+        cin >> width; cout << ">"; cin >> height;
+
+        ResizeAlgo(image, width, height); break; 
+    }
+    case 2:  RatioAlgoAndinterface(image); break;
+    case 3:  MenuScreenAndOperatAFilter(vCurrentPicAndItsName);   break;
+    default: UnValidNumberMessage(1, 3); ResizeScreen(vCurrentPicAndItsName);
+    }
+
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Resize image");
+
+    ShowEnd(65);
 }
 
 // ===================++ Save & Load Filters ++=====================-
 
 void EnterImagePairWithValidation(pair<Image, string>& pCurrentPicAndItsName) {
 
-    if (cin.peek() == '\n')
+    if (cin.peek() == '\n') 
         cin.ignore();
 
     bool success = false;
@@ -697,18 +791,6 @@ void FiltersHistory(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
 // ===================++ Menu screen functions ++=====================
 
-int ShowMenuScreenAndTackChoice() {
-    // This function will print main menu and take choice from our user
-    GenerateHeader(65, "Main menu screen");
-    vector<string> options = { "Load new image", "Grayscale filter","Black and white filter",
-        "Invert image colors filter", "Flip image filter", "Brightness filter",
-        "Rotate image filter", "Crop image", "Save current image", "Show applied filters", "Exit"};
-    // We will take user choice by this function -> GenerateOptionsListAndChoose();
-    int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
-
-    return ChoiceNum;
-}
-
 void Exit(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     ClearScreen();
     char confirmation;
@@ -740,10 +822,14 @@ void Exit(vector<pair<Image, string>>& vCurrentPicAndItsName) {
         PuttyEndingMessage();
 }
 
-
 int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
-    int ChoiceNum = ShowMenuScreenAndTackChoice();
+    GenerateHeader(65, "Main menu screen");
+    vector<string> options = { "Load new image", "Grayscale filter","Black and white filter",
+        "Invert image colors filter", "Flip image filter", "Brightness filter",
+        "Rotate image filter", "Crop image", "Resize image", "Save current image", "Show applied filters", "Exit" };
+    
+    int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
 
     switch (ChoiceNum) {
     case enfilters::enLoadImage: LoadAnImage(vCurrentPicAndItsName); break;
@@ -754,10 +840,11 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
     case enfilters::enDarkenAndLighten: DarkenAndLighten(vCurrentPicAndItsName); break;
     case enfilters::enRotateImage: RotateImage(vCurrentPicAndItsName); break;
     case enfilters::enCropImage: CropImage(vCurrentPicAndItsName); break;
+    case enfilters::enResize: ResizeScreen(vCurrentPicAndItsName); break;
     case enfilters::enSaveImage: SaveAnImage(vCurrentPicAndItsName); break;
     case enfilters::enAppliedFiltersScreen: FiltersHistory(vCurrentPicAndItsName);  break;
-    case enfilters::enExit: return 11;
-    default: UnValidNumberMessage(1, 11);
+    case enfilters::enExit: return 12;
+    default: UnValidNumberMessage(1, 12);
         MenuScreenAndOperatAFilter(vCurrentPicAndItsName);
     } 
     return ChoiceNum;
@@ -768,7 +855,7 @@ void StartFilterProgram(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     int Choice;
     ClearScreen();
 
-    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 11);
+    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 12);
 
     Exit(vCurrentPicAndItsName);
 }
