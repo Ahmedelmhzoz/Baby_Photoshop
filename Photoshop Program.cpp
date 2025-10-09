@@ -165,12 +165,6 @@ bool IsExtensionFalse(string FileName) {
     return false;
 }
 
-bool CheakIfThereArentCurrnetPic(vector<pair<Image, string>>& vCurrentPicAndItsName) {
-    if (vCurrentPicAndItsName.empty()) return true;
-
-    return false;
-}
-
 void ThereIsNoPicMessage() {
     cout << "\nError )-:, you must load an image at first to use filters\n";
     cout << "Please press any key to go back to main menu then upload an image....\n";
@@ -233,9 +227,6 @@ void HorizontalFlip(Image& image) {
 void FlipImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     GenerateHeader(65, "Flip image screen");
-    if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
-        return void(ThereIsNoPicMessage());
-    }
     vector<string> options = { "Flip image Horizontally (left-right flip)",
         "Flip image vertically (bottom-top flip)", "Back to menu" };
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
@@ -253,11 +244,7 @@ void FlipImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 void Grayscale(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     GenerateHeader(60, "Grayscale filter screen");
-    if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
-        return void(ThereIsNoPicMessage());
-    }
-    Image image;
-    image = vCurrentPicAndItsName[0].first;
+    Image &image = vCurrentPicAndItsName[0].first;
     for (int i = 0; i < image.width; i++) {
         for (int j = 0; j < image.height; j++) {
             int total = 0;
@@ -272,8 +259,6 @@ void Grayscale(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     }
     stFiltersHistory.push(image);
     vAppliedFilters.push_back("Gray Scale");
-
-    vCurrentPicAndItsName[0].first = image;
     ShowEnd(60);
 }
 
@@ -282,11 +267,7 @@ void Grayscale(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 void BlackAndWhite(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     GenerateHeader(65, "Black and White filter screen");
-    if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
-        return void(ThereIsNoPicMessage());
-    }
-    Image image;
-    image = vCurrentPicAndItsName[0].first;
+    Image& image = vCurrentPicAndItsName[0].first;
     for (int i = 0; i < image.width; i++) {
         for (int j = 0; j < image.height; j++) {
             unsigned int total = 0;
@@ -306,8 +287,6 @@ void BlackAndWhite(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     }
     stFiltersHistory.push(image);
     vAppliedFilters.push_back("Black And White");
-
-    vCurrentPicAndItsName[0].first = image;
     ShowEnd(65);
 }
 
@@ -364,9 +343,6 @@ void LightenLevel(Image& image) {
 void DarkenAndLighten(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     GenerateHeader(65, "Darken and lighten screen");
-    if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
-        return void(ThereIsNoPicMessage());
-    }
     vector<string> options = { "Darken filter", "Lighten filter", "Back to menu" };
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
     switch (ChoiceNum) {
@@ -430,9 +406,6 @@ void Rotate270DegreesAlgo(Image& image) {
 void RotateImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     GenerateHeader(65, "Rotate image screen");
-    if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
-        return void(ThereIsNoPicMessage());
-    }
     vector<string> options = { "Rotate the image 90 degree clockwise",
         "Rotate the image 180 degree clockwise", "Rotate the image 270 degree clockwise",
     "Back to menu" };
@@ -452,11 +425,8 @@ void RotateImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 void InvertImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     GenerateHeader(65, "Invert image screen");
-    if (CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
-        return void(ThereIsNoPicMessage());
-    }
-    Image image;
-    image = vCurrentPicAndItsName[0].first;
+    
+    Image &image = vCurrentPicAndItsName[0].first;
     //vCurrentPic[0].first.width = image.width, becase the first of pair is Image (object)
     for (int i = 0; i < image.width; ++i) {
         for (int j = 0; j < image.height; ++j) {
@@ -468,8 +438,6 @@ void InvertImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     }
     stFiltersHistory.push(image);
     vAppliedFilters.push_back("Invert Colors Filter");
-
-    vCurrentPicAndItsName[0].first = image;
     ShowEnd(65);
 }
 
@@ -481,7 +449,7 @@ stCropFilterData CropImageScreen() {
     stCropFilterData data;
 
     cout << "Please enter upper left corner point first(the starting point X, Y)\n";
-    cout << '>'; cin >> data.x; cout << ">"; cin >> data.y; 
+    cout << '>'; cin >> data.x; cout << ">"; cin >> data.y;
     cout << string(70, '_') << '\n';
     cout << "Please enter the width and height of the part you wanna crop\n>";
     cin >> data.width; cout << ">"; cin >> data.height;
@@ -514,7 +482,7 @@ void CropImageAlgo(stCropFilterData& data, Image& image) {
 
     for (int i = data.x; i < data.x + data.width; i++) {
         for (int j = data.y; j < data.y + data.height; j++) {
-            for (int RGB = 0; RGB < 3; RGB++) {                 
+            for (int RGB = 0; RGB < 3; RGB++) {
                 CroppedImage(i - data.x, j - data.y, RGB) = image(i, j, RGB);
             }
         }
@@ -531,13 +499,13 @@ void CropImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     vAppliedFilters.push_back("Crop image");
     ShowEnd(70);
 }
-    
+
 // ===================++ Ressize filter ++=====================
 
 void ResizeAlgo(Image& image, int NewWidth, int Newheight) {
 
     int oldWidth = image.width, oldHeight = image.height; float xScale, yScale;
-  
+
     if (oldWidth == NewWidth && oldHeight == Newheight)  return;
 
     xScale = (float)oldWidth / NewWidth;
@@ -568,12 +536,12 @@ float RatioMessageAndScalePercentage(bool IsReduction) {
         if (ratio < 1 || ratio > 100)
             cout << "\aError )-:, Please enter a number between 1 and 100\n";
     } while (ratio < 1 || ratio > 100);
-    
+
     if (IsReduction) ratio *= -1;
     return (ratio / 100.0);
 }
 
-void RatioAlgoAndinterface(Image &image) {
+void RatioAlgoAndinterface(Image& image) {
 
     GenerateHeader(65, "Ratio entry screen");
     vector<string> options = { "Reduction" , "Increse" };
@@ -587,24 +555,24 @@ void RatioAlgoAndinterface(Image &image) {
         ratio = RatioMessageAndScalePercentage(false);
     }
     else {
-        UnValidNumberMessage(1, 2); RatioAlgoAndinterface(image); 
+        UnValidNumberMessage(1, 2); RatioAlgoAndinterface(image);
         return;
     }
 
     // if he choosed 100 in reduction the image will disappear so we check here first
-    int width = max(1, (int) round( image.width + image.width * ratio) ); 
-    int height = max(1, (int) round( image.height + image.height * ratio) );
+    int width = max(1, (int)round(image.width + image.width * ratio));
+    int height = max(1, (int)round(image.height + image.height * ratio));
 
-    ResizeAlgo(image, width, height); 
+    ResizeAlgo(image, width, height);
 
 }
 
 void ResizeScreen(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
-    
+
     Image& image = vCurrentPicAndItsName[0].first;
     GenerateHeader(65, "Resize image screen");
-    vector<string> options = { "enter new dimensions" , "enter a ratio of reduction or increase" , "Back to menu"};
+    vector<string> options = { "enter new dimensions" , "enter a ratio of reduction or increase" , "Back to menu" };
 
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65); bool ReturnedToMenu = false;
 
@@ -612,10 +580,10 @@ void ResizeScreen(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     case 1:
     {
         GenerateHeader(65, "New dimensions entry screen");
-        int width, height; cout << "\nPlease enter new dimensions (New width and height)\n>"; 
+        int width, height; cout << "\nPlease enter new dimensions (New width and height)\n>";
         cin >> width; cout << ">"; cin >> height;
 
-        ResizeAlgo(image, width, height); break; 
+        ResizeAlgo(image, width, height); break;
     }
     case 2:  RatioAlgoAndinterface(image); break;
     case 3:  MenuScreenAndOperatAFilter(vCurrentPicAndItsName); ReturnedToMenu = true;  break;
@@ -684,7 +652,6 @@ void MergeImages(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     if (image.width == image2.width && image.height == image2.height) {
         MergeAlgo(image, image2);
-        ShowEnd(65);
         return;
     }
     cout << '\n';
@@ -879,16 +846,16 @@ void SimpleFrame(Image& image) {
     int borderSize = 15;
     int colorValue = 150;
 
-    // ÇáÇØÇÑ ÇáÚáæí
+    
     DrawRec(image, 0, image.width, 0, borderSize, 0, 0, colorValue);
 
-    // ÇáÇØÇÑ ÇáÓÓÝáí
+    
     DrawRec(image, 0, image.width, image.height - borderSize, image.height, 0, 0, colorValue);
 
-    // ÇáÇØÇÑ ÇáÇíÓÑ
+
     DrawRec(image, 0, borderSize, 0, image.height, 0, 0, colorValue);
 
-    // ÇáÇØÇÑ ÇáÇíãä
+  
     DrawRec(image, image.width - borderSize, image.width, 0, image.height, 0, 0, colorValue);
 }
 
@@ -898,45 +865,45 @@ void FancyFrame(Image& image) {
     int Width = image.width;
     int Height = image.height;
 
-    // ÇáÇØÇÑ ÇáÚáæí
+ 
     DrawRec(image, 0, Width, 0, 10, R, G, B);
     DrawRec(image, 0, Width, 10, 15, W, W, W);
 
-    // ÇáÇØÇÑ ÇáÓÓÝáí
+
     DrawRec(image, 0, Width, Height - 15, Height - 10, W, W, W);
     DrawRec(image, 0, Width, Height - 10, Height, R, G, B);
 
-    // ÇáÇØÇÑ ÇáÇíÓÑ
+
     DrawRec(image, 0, 10, 0, Height, R, G, B);
     DrawRec(image, 10, 15, 10, Height - 10, W, W, W);
     DrawRec(image, 10, 15, 0, 10, R, G, B);
     DrawRec(image, 10, 15, Height - 10, Height, R, G, B);
 
-    // ÇáÇØÇÑ ÇáÇíãä
+
     DrawRec(image, Width - 10, Width, 0, Height, R, G, B);
     DrawRec(image, Width - 15, Width - 10, 10, Height - 10, W, W, W);
     DrawRec(image, Width - 15, Width - 10, 0, 10, R, G, B);
     DrawRec(image, Width - 15, Width - 10, Height - 10, Height, R, G, B);
 
-    // ÊÒííä ÇáÒÇæíÉ ÇáÚáæíÉ ÔãÇá
+
     DrawRec(image, 15, 80, 60, 65, W, W, W);
     DrawRec(image, 75, 80, 15, 60, W, W, W);
     DrawRec(image, 15, 35, 30, 35, W, W, W);
     DrawRec(image, 30, 35, 15, 30, W, W, W);
 
-    // ÊÒííä ÇáÒÇæíÉ ÇáÚáæíÉ íãíä
+
     DrawRec(image, Width - 80, Width - 15, 55, 60, W, W, W);
     DrawRec(image, Width - 80, Width - 75, 15, 60, W, W, W);
     DrawRec(image, Width - 35, Width - 15, 30, 35, W, W, W);
     DrawRec(image, Width - 35, Width - 30, 15, 30, W, W, W);
 
-    // ÊÒííä ÇáÒÇæíÉ ÇáÓÝáíÉ ÔãÇá
+
     DrawRec(image, 15, 80, Height - 60, Height - 55, W, W, W);
     DrawRec(image, 75, 80, Height - 60, Height - 15, W, W, W);
     DrawRec(image, 15, 35, Height - 35, Height - 30, W, W, W);
     DrawRec(image, 30, 35, Height - 30, Height - 15, W, W, W);
 
-    //  ÊÒííä ÇáÒÇæíÉ ÇáÓÝáíÉ íãíä
+
     DrawRec(image, Width - 80, Width - 15, Height - 60, Height - 55, W, W, W);
     DrawRec(image, Width - 80, Width - 75, Height - 60, Height - 15, W, W, W);
     DrawRec(image, Width - 35, Width - 15, Height - 35, Height - 30, W, W, W);
@@ -1087,9 +1054,9 @@ void oldTVFilter(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
 // ===================++ Save & Load Filters ++=====================
 
-void EnterImageDataWithValidation(Image& image, string &filename) {
+void EnterImageDataWithValidation(Image& image, string& filename) {
 
-    if (cin.peek() == '\n') 
+    if (cin.peek() == '\n')
         cin.ignore();
 
     bool success = false;
@@ -1116,56 +1083,51 @@ void EnterImageDataWithValidation(Image& image, string &filename) {
 void SaveAnImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 
     GenerateHeader(65, "Save image screen");
-    if (!vCurrentPicAndItsName.empty()) {
-        vector<string> options = { "Replace the old image with the modified one",
-           "Save with different name and keep the old version", "Back to main menu" };
-        int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
+    
+    vector<string> options = { "Replace the old image with the modified one",
+       "Save with different name and keep the old version", "Back to main menu" };
+    int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
 
-        switch (ChoiceNum) {
-        case 1: {
-            vCurrentPicAndItsName[0].first.saveImage(vCurrentPicAndItsName[0].second);// == image.saveImage(selected_image);
-            vAppliedFilters.clear();
-            while (!stFiltersHistory.empty()) {
-                stFiltersHistory.pop();
-            }
-            ShowEnd(65);
-            break;
+    switch (ChoiceNum) {
+    case 1: {
+        vCurrentPicAndItsName[0].first.saveImage(vCurrentPicAndItsName[0].second);// == image.saveImage(selected_image);
+        vAppliedFilters.clear();
+        while (!stFiltersHistory.empty()) {
+            stFiltersHistory.pop();
         }
-        case 2: {
-            cout << "\nPlease enter a new name for the edited image.\n";
-            cout << "and specify extension [.jpg, .bmp, .png, .tga]: \n>";
+        ShowEnd(65);
+        break;
+    }
+    case 2: {
+        cout << "\nPlease enter a new name for the edited image.\n";
+        cout << "and specify extension [.jpg, .bmp, .png, .tga]: \n>";
 
-            ////
-            string OriginalImage = vCurrentPicAndItsName[0].second;
-            ////
+        ////
+        string OriginalImage = vCurrentPicAndItsName[0].second;
+        ////
 
-            cin.ignore();
+        cin.ignore();
+        getline(cin, vCurrentPicAndItsName[0].second);
+        while (IsExtensionFalse(vCurrentPicAndItsName[0].second)) {
+            cout << "\a\nError )-:, Please enter a valid extension [.jpg, .bmp, .png, .tga]\n>";
             getline(cin, vCurrentPicAndItsName[0].second);
-            while (IsExtensionFalse(vCurrentPicAndItsName[0].second)) {
-                cout << "\a\nError )-:, Please enter a valid extension [.jpg, .bmp, .png, .tga]\n>";
-                getline(cin, vCurrentPicAndItsName[0].second);
-            }
-
-            // Then save it with the same object and the new name he enterd
-            vCurrentPicAndItsName[0].first.saveImage(vCurrentPicAndItsName[0].second);// == image.saveImage(selected_image);
-
-            ////
-            vCurrentPicAndItsName[0].second = OriginalImage;
-            ////
-
-
-            ShowEnd(65); break;
         }
-        case 3: MenuScreenAndOperatAFilter(vCurrentPicAndItsName); break;
 
-        default: UnValidNumberMessage(1, 3); SaveAnImage(vCurrentPicAndItsName); ////
-        }
+        // Then save it with the same object and the new name he enterd
+        vCurrentPicAndItsName[0].first.saveImage(vCurrentPicAndItsName[0].second);// == image.saveImage(selected_image);
+
+        ////
+        vCurrentPicAndItsName[0].second = OriginalImage;
+        ////
+
+
+        ShowEnd(65); break;
     }
-    else {
-        cout << "\nError )-:, Please upload an image firstly then save it after editing\n";
-        cout << "\aPlease press any key to go back to main menu then upload an image....\n>";
-        system("pause>0");
+    case 3: MenuScreenAndOperatAFilter(vCurrentPicAndItsName); break;
+
+    default: UnValidNumberMessage(1, 3); SaveAnImage(vCurrentPicAndItsName); ////
     }
+  
 }
 
 void LoadAnImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
@@ -1255,32 +1217,30 @@ void FiltersHistory(vector<pair<Image, string>>& vCurrentPicAndItsName) {
 void Exit(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     ClearScreen();
     char confirmation;
-    if (!CheakIfThereArentCurrnetPic(vCurrentPicAndItsName)) {
-        cout << "Are you sure to exit the program ?\n";
-        cout << "You didn't save the current image, and it will not be saved )-:\n";
-        AnotherSound();
-        cout << "To exit please confirm and press [Y] or press [N] to go back to menu\n";
-        cout << ">";
-        while (true) {
-            cin >> confirmation;
-            if (confirmation == 'Y' || confirmation == 'y') {
-                PuttyEndingMessage();
-                return;
-            }
-            else if (confirmation == 'n' || confirmation == 'N') {
-                StartFilterProgram(vCurrentPicAndItsName);
-                return;
-            }
+    
+    cout << "Are you sure to exit the program ?\n";
+    cout << "You didn't save the current image, and it will not be saved )-:\n";
+    AnotherSound();
+    cout << "To exit please confirm and press [Y] or press [N] to go back to menu\n";
+    cout << ">";
+    while (true) {
+        cin >> confirmation;
+        if (confirmation == 'Y' || confirmation == 'y') {
+            PuttyEndingMessage();
+            return;
+        }
+        else if (confirmation == 'n' || confirmation == 'N') {
+            StartFilterProgram(vCurrentPicAndItsName);
+            return;
+        }
 
-            else {
+        else {
 
-                cout << "\nPlease enter [Y/N]\n";
-                cout << ">";
-            }
+            cout << "\nPlease enter [Y/N]\n";
+            cout << ">";
         }
     }
-    else
-        PuttyEndingMessage();
+   
 }
 
 int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsName) {
@@ -1291,7 +1251,7 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
         "Rotate image filter", "Crop image", "Resize image", "Merge Images screen",
         "Detect Image edges", "Blur Filter screen", "Wano sunlight filter", "Add frame", "Purple filter",
         "Old TV filter", "Save current image", "Show applied filters", "Exit" };
-    
+
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
 
     switch (ChoiceNum) {
@@ -1305,7 +1265,7 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
     case enfilters::enCropImage: CropImage(vCurrentPicAndItsName); break;
     case enfilters::enResize: ResizeScreen(vCurrentPicAndItsName); break;
     case enfilters::enMerge: MergeImages(vCurrentPicAndItsName); break;
-    case enfilters::enDetectFilter :DetectFilter(vCurrentPicAndItsName); break;
+    case enfilters::enDetectFilter:DetectFilter(vCurrentPicAndItsName); break;
     case enfilters::enBlur: Blur(vCurrentPicAndItsName); break;
     case enfilters::enWanoSunlight: WanoSunlightFilter(vCurrentPicAndItsName); break;
     case enfilters::enFrame: AddFrameToImage(vCurrentPicAndItsName); break;
@@ -1316,7 +1276,7 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
     case enfilters::enExit: return 19;
     default: UnValidNumberMessage(1, 19);
         MenuScreenAndOperatAFilter(vCurrentPicAndItsName);
-    } 
+    }
     return ChoiceNum;
 }
 
