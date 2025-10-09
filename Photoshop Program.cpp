@@ -29,6 +29,7 @@
 *
 ****************************************************/
 #include <iostream>
+#include <algorithm>
 #include <vector>
 #include <stack>
 #include <string>
@@ -40,8 +41,8 @@ using  namespace std;
 enum enfilters {
     enLoadImage = 1, enGrayScale = 2, enBlackAndWhite = 3, enInvertImage = 4,
     enFlipImage = 5, enDarkenAndLighten = 6, enRotateImage = 7, enCropImage, enResize = 9, enMerge = 10,
-    enSaveImage = 11, enAppliedFiltersScreen = 12, enExit = 13
-    
+    enDetectFilter = 11, enBlur = 12, enWanoSunlight = 13, enFrame = 14, enPurple = 15, enOldTV = 16,
+    enSaveImage = 17, enAppliedFiltersScreen = 18, enExit = 19
 };
 
 struct stCropFilterData {
@@ -472,7 +473,7 @@ void InvertImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     ShowEnd(65);
 }
 
-//=================== ++Crop Filter++==================== =
+//=================== ++Crop Filter++ =====================
 
 stCropFilterData CropImageScreen() {
 
@@ -699,7 +700,392 @@ void MergeImages(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     }
 }
 
-// ===================++ Save & Load Filters ++=====================-
+// ===================++ Detect Image Edges Filters ++=====================-
+
+void gray(Image& im) {
+    for (int i = 0; i < im.width; i++) {
+        for (int j = 0; j < im.height; j++) {
+            int avg = 0;
+            for (int k = 0; k < 3; k++) {
+                avg += im(i, j, k);
+            }
+            avg /= 3;
+            for (int k = 0; k < 3; k++) {
+                im.setPixel(i, j, k, avg);
+            }
+        }
+    }
+}
+
+void DetectFilter(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+    GenerateHeader(65, "Detect Image Edges screen");
+    Image& im = vCurrentPicAndItsName[0].first;
+    gray(im);
+    int kernelx[3][3] = { {1, 0, -1},
+                         {2, 0, -2},
+                         {1, 0, -1} };
+    int kernely[3][3] = { {1, 2, 1},
+                         {0, 0, 0},
+                         {-1, -2, -1} };
+    Image result(im.width, im.height);
+    double totalmag = 0.0;
+    int count = 0;
+    for (int i = 0; i < im.width - 2; i++) {
+        for (int j = 0; j < im.height - 2; j++) {
+            int sumx = 0;
+            int sumy = 0;
+            for (int I = 0; I <= 2; I++) {
+                for (int J = 0; J <= 2; J++) {
+                    int pix = im(i + I, j + J, 0);
+                    sumx += pix * kernelx[I][J];
+                    sumy += pix * kernely[I][J];
+                }
+            }
+            double mag = sqrt(sumx * sumx + sumy * sumy);
+            int final_mag = min(255, max(0, (int)round(mag)));
+            totalmag += final_mag;
+            count++;
+            for (int k = 0; k < 3; k++) {
+                result.setPixel(i, j, k, final_mag);
+            }
+        }
+    }
+    double avg_mag = totalmag / count;
+    for (int i = 0; i < im.width; i++) {
+        for (int j = 0; j < im.height; j++) {
+            int pix = result(i, j, 0);
+            int val = (pix > avg_mag) ? 0 : 255;
+            for (int k = 0; k < 3; k++) {
+                result.setPixel(i, j, k, val);
+            }
+        }
+    }
+    im = result;
+    stFiltersHistory.push(result);
+    vAppliedFilters.push_back("Detect Edges filter");
+    ShowEnd(65);
+}
+
+// ===================++ Blur Filter ++=====================-
+
+void Blur(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+    Image& image = vCurrentPicAndItsName[0].first;
+    GenerateHeader(65, "Blur filter screen");
+    int r;
+    cout << "\nEnter blur radius: ";
+    cin >> r;
+    Image temp(image.width, image.height);
+    vector<vector<vector<int>>> arr(
+        image.width,
+        vector<vector<int>>(image.height, vector<int>(3, 0))
+    );
+
+    arr[0][0][0] = image(0, 0, 0);
+    arr[0][0][1] = image(0, 0, 1);
+    arr[0][0][2] = image(0, 0, 2);
+
+
+    for (int i = 1; i < image.width; i++) {
+        for (int k = 0; k < 3; k++) {
+            arr[i][0][k] = arr[i - 1][0][k];
+        }
+    }
+    for (int i = 1; i < image.height; i++) {
+        for (int k = 0; k < 3; k++) {
+            arr[0][i][k] = arr[0][i - 1][k];
+        }
+    }
+    for (int j = 1; j < image.height; j++) {
+        for (int i = 1; i < image.width; i++) {
+            for (int k = 0; k < 3; k++) {
+                arr[i][j][k] = arr[i - 1][j][k] + arr[i][j - 1][k] + image(i, j, k) - arr[i - 1][j - 1][k];
+            }
+        }
+    }
+
+    for (int i = 0; i < image.width; i++) {
+        for (int j = 0; j < image.height; j++) {
+            int x1 = max(0, i - r);
+            int y1 = max(0, j - r);
+            int x2 = min(image.width - 1, i + r);
+            int y2 = min(image.height - 1, j + r);
+
+            for (int k = 0; k < 3; k++) {
+                long long sum = arr[x2][y2][k]
+                    - (x1 ? arr[x1 - 1][y2][k] : 0)
+                    - (y1 ? arr[x2][y1 - 1][k] : 0)
+                    + (x1 && y1 ? arr[x1 - 1][y1 - 1][k] : 0);
+
+                int count = (x2 - x1 + 1) * (y2 - y1 + 1);
+
+                temp(i, j, k) = sum / count;
+            }
+        }
+    }
+    image = temp;
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Blur filter");
+    ShowEnd(65);
+}
+
+// ===================++ Sunlight Filter ++=====================
+
+void WanoSunlightFilter(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+    GenerateHeader(65, "Wano Sunlight screen");
+    Image& image = vCurrentPicAndItsName[0].first;
+    const int Br_Boost = 20;
+    const int R_boost = 40;
+    const int Gboost = 25;
+
+    for (int i = 0; i < image.width; i++) {
+        for (int j = 0; j < image.height; j++) {
+            unsigned char r = image(i, j, 0);
+            unsigned char g = image(i, j, 1);
+            unsigned char b = image(i, j, 2);
+
+            int newR = r + Br_Boost + R_boost;
+            int newG = g + Br_Boost + Gboost;
+            int newB = b + Br_Boost - 50;
+
+            if (newR > 255) newR = 255;
+            if (newG > 255) newG = 255;
+            if (newB > 255) newB = 255;
+
+            image(i, j, 0) = newR;
+            image(i, j, 1) = newG;
+            image(i, j, 2) = newB;
+        }
+    }
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Wanno sunlight filter");
+    ShowEnd(65);
+}
+
+// ===================++ Frame Filter ++=====================
+
+void DrawRec(Image& image, int xStart, int xEnd, int yStart, int yEnd, int r, int g, int b) {
+    for (int i = xStart; i < xEnd; i++) {
+        for (int j = yStart; j < yEnd; j++) {
+            if (i >= 0 && i < image.width && j >= 0 && j < image.height) {
+                image(i, j, 0) = r;
+                image(i, j, 1) = g;
+                image(i, j, 2) = b;
+            }
+        }
+    }
+}
+
+void SimpleFrame(Image& image) {
+    int borderSize = 15;
+    int colorValue = 150;
+
+    // ÇáÇØÇÑ ÇáÚáæí
+    DrawRec(image, 0, image.width, 0, borderSize, 0, 0, colorValue);
+
+    // ÇáÇØÇÑ ÇáÓÓÝáí
+    DrawRec(image, 0, image.width, image.height - borderSize, image.height, 0, 0, colorValue);
+
+    // ÇáÇØÇÑ ÇáÇíÓÑ
+    DrawRec(image, 0, borderSize, 0, image.height, 0, 0, colorValue);
+
+    // ÇáÇØÇÑ ÇáÇíãä
+    DrawRec(image, image.width - borderSize, image.width, 0, image.height, 0, 0, colorValue);
+}
+
+void FancyFrame(Image& image) {
+    int R = 0, G = 0, B = 255;
+    int W = 255;
+    int Width = image.width;
+    int Height = image.height;
+
+    // ÇáÇØÇÑ ÇáÚáæí
+    DrawRec(image, 0, Width, 0, 10, R, G, B);
+    DrawRec(image, 0, Width, 10, 15, W, W, W);
+
+    // ÇáÇØÇÑ ÇáÓÓÝáí
+    DrawRec(image, 0, Width, Height - 15, Height - 10, W, W, W);
+    DrawRec(image, 0, Width, Height - 10, Height, R, G, B);
+
+    // ÇáÇØÇÑ ÇáÇíÓÑ
+    DrawRec(image, 0, 10, 0, Height, R, G, B);
+    DrawRec(image, 10, 15, 10, Height - 10, W, W, W);
+    DrawRec(image, 10, 15, 0, 10, R, G, B);
+    DrawRec(image, 10, 15, Height - 10, Height, R, G, B);
+
+    // ÇáÇØÇÑ ÇáÇíãä
+    DrawRec(image, Width - 10, Width, 0, Height, R, G, B);
+    DrawRec(image, Width - 15, Width - 10, 10, Height - 10, W, W, W);
+    DrawRec(image, Width - 15, Width - 10, 0, 10, R, G, B);
+    DrawRec(image, Width - 15, Width - 10, Height - 10, Height, R, G, B);
+
+    // ÊÒííä ÇáÒÇæíÉ ÇáÚáæíÉ ÔãÇá
+    DrawRec(image, 15, 80, 60, 65, W, W, W);
+    DrawRec(image, 75, 80, 15, 60, W, W, W);
+    DrawRec(image, 15, 35, 30, 35, W, W, W);
+    DrawRec(image, 30, 35, 15, 30, W, W, W);
+
+    // ÊÒííä ÇáÒÇæíÉ ÇáÚáæíÉ íãíä
+    DrawRec(image, Width - 80, Width - 15, 55, 60, W, W, W);
+    DrawRec(image, Width - 80, Width - 75, 15, 60, W, W, W);
+    DrawRec(image, Width - 35, Width - 15, 30, 35, W, W, W);
+    DrawRec(image, Width - 35, Width - 30, 15, 30, W, W, W);
+
+    // ÊÒííä ÇáÒÇæíÉ ÇáÓÝáíÉ ÔãÇá
+    DrawRec(image, 15, 80, Height - 60, Height - 55, W, W, W);
+    DrawRec(image, 75, 80, Height - 60, Height - 15, W, W, W);
+    DrawRec(image, 15, 35, Height - 35, Height - 30, W, W, W);
+    DrawRec(image, 30, 35, Height - 30, Height - 15, W, W, W);
+
+    //  ÊÒííä ÇáÒÇæíÉ ÇáÓÝáíÉ íãíä
+    DrawRec(image, Width - 80, Width - 15, Height - 60, Height - 55, W, W, W);
+    DrawRec(image, Width - 80, Width - 75, Height - 60, Height - 15, W, W, W);
+    DrawRec(image, Width - 35, Width - 15, Height - 35, Height - 30, W, W, W);
+    DrawRec(image, Width - 35, Width - 30, Height - 30, Height - 15, W, W, W);
+}
+
+void AddFrameToImage(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+    Image& image = vCurrentPicAndItsName[0].first;
+    GenerateHeader(65, "Frame screen");
+    vector<string> options = { "Simple frame", "Fancy frame", "Back to menu" };
+    int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
+    bool ReturnedToMenu = false;
+    switch (ChoiceNum) {
+    case 1: SimpleFrame(image); break;
+    case 2: FancyFrame(image); break;
+    case 3: MenuScreenAndOperatAFilter(vCurrentPicAndItsName); ReturnedToMenu = true; break;
+    default: UnValidNumberMessage(1, 3); AddFrameToImage(vCurrentPicAndItsName);
+    }
+
+    if (!ReturnedToMenu) {
+        stFiltersHistory.push(image);
+        vAppliedFilters.push_back("Added Frame");
+        ShowEnd(65);
+    }
+}
+
+// ===================++ Purple Filter ++=====================
+
+void purpleFilter(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+    GenerateHeader(65, "Purple filter screen");
+    Image& image = vCurrentPicAndItsName[0].first;
+    int Rboost = 35;
+    int Bboost = 55;
+    float Gboost = .9;
+    float Factor = .9;
+
+    for (int i = 0; i < image.width; i++) {
+        for (int j = 0; j < image.height; j++) {
+            int r = image(i, j, 0);
+            int g = image(i, j, 1);
+            int b = image(i, j, 2);
+
+            int newR = r + Rboost;
+            int newG = (int)(g * Gboost);
+            int newB = b + Bboost;
+
+            newR = (int)(newR * Factor);
+            newG = (int)(newG * Factor);
+            newB = (int)(newB * Factor);
+
+            if (newR > 255) newR = 255;
+            if (newG > 255) newG = 255;
+            if (newB > 255) newB = 255;
+
+            if (newR < 0) newR = 0;
+            if (newG < 0) newG = 0;
+            if (newB < 0) newB = 0;
+
+            image(i, j, 0) = newR;
+            image(i, j, 1) = newG;
+            image(i, j, 2) = newB;
+        }
+    }
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Purple filter");
+    ShowEnd(65);
+}
+
+// ===================++ Old TV Filter ++=====================
+
+void addNoise(Image& image) {
+    int modNum = 30;
+    for (int i = 0; i < image.height; ++i) {
+        for (int j = 0; j < image.width; ++j) {
+            for (int c = 0; c < image.channels; ++c) {
+                int val = image(j, i, c);
+                int noise = (rand() % (2 * modNum)) - modNum;
+                val += noise;
+
+                if (val < 0) val = 0;
+                if (val > 255) val = 255;
+
+                image(j, i, c) = (unsigned char)val;
+            }
+        }
+    }
+}
+
+
+void addScanlines(Image& image) {
+    for (int i = 0; i < image.height - 1; ++i) {
+        if (i % 4 == 0) {
+            for (int j = 0; j < image.width; ++j) {
+                for (int c = 0; c < image.channels; ++c) {
+                    int val = image(j, i, c);
+                    val = val * .4;
+                    image(j, i, c) = (unsigned char)val;
+                    image(j, i + 1, c) = (unsigned char)val;
+                }
+            }
+        }
+    }
+}
+
+void applyColorDistortion(Image& image) {
+    int modNum = 20;
+    for (int i = 0; i < image.height; ++i) {
+        for (int j = 0; j < image.width; ++j) {
+            int randnum = rand() % 3 + 1;
+            int distortion = (rand() % modNum) - modNum / 2;
+
+            int val;
+            int channel_index;
+
+            if (randnum == 1) {
+                val = image(j, i, 0);
+                channel_index = 0;
+            }
+            else if (randnum == 2) {
+                val = image(j, i, 1);
+                channel_index = 1;
+            }
+            else {
+                val = image(j, i, 2);
+                channel_index = 2;
+            }
+
+            val += distortion;
+
+            if (val > 255) val = 255;
+            if (val < 0) val = 0;
+
+            image(j, i, channel_index) = val;
+        }
+    }
+}
+
+void oldTVFilter(vector<pair<Image, string>>& vCurrentPicAndItsName) {
+    GenerateHeader(65, "Old TV filter screen");
+    Image& image = vCurrentPicAndItsName[0].first;
+    addNoise(image);
+    addScanlines(image);
+    applyColorDistortion(image);
+    stFiltersHistory.push(image);
+    vAppliedFilters.push_back("Old TV filter");
+    ShowEnd(65);
+}
+
+// ===================++ Save & Load Filters ++=====================
 
 void EnterImageDataWithValidation(Image& image, string &filename) {
 
@@ -903,7 +1289,8 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
     vector<string> options = { "Load new image", "Grayscale filter","Black and white filter",
         "Invert image colors filter", "Flip image filter", "Brightness filter",
         "Rotate image filter", "Crop image", "Resize image", "Merge Images screen",
-        "Save current image", "Show applied filters", "Exit" };
+        "Detect Image edges", "Blur Filter screen", "Wano sunlight filter", "Add frame", "Purple filter",
+        "Old TV filter", "Save current image", "Show applied filters", "Exit" };
     
     int ChoiceNum = GenerateOptionsListAndChoose(options, 65);
 
@@ -918,10 +1305,16 @@ int MenuScreenAndOperatAFilter(vector<pair<Image, string>>& vCurrentPicAndItsNam
     case enfilters::enCropImage: CropImage(vCurrentPicAndItsName); break;
     case enfilters::enResize: ResizeScreen(vCurrentPicAndItsName); break;
     case enfilters::enMerge: MergeImages(vCurrentPicAndItsName); break;
+    case enfilters::enDetectFilter :DetectFilter(vCurrentPicAndItsName); break;
+    case enfilters::enBlur: Blur(vCurrentPicAndItsName); break;
+    case enfilters::enWanoSunlight: WanoSunlightFilter(vCurrentPicAndItsName); break;
+    case enfilters::enFrame: AddFrameToImage(vCurrentPicAndItsName); break;
+    case enfilters::enPurple: purpleFilter(vCurrentPicAndItsName); break;
+    case enfilters::enOldTV: oldTVFilter(vCurrentPicAndItsName); break;
     case enfilters::enSaveImage: SaveAnImage(vCurrentPicAndItsName); break;
     case enfilters::enAppliedFiltersScreen: FiltersHistory(vCurrentPicAndItsName);  break;
-    case enfilters::enExit: return 13;
-    default: UnValidNumberMessage(1, 13);
+    case enfilters::enExit: return 19;
+    default: UnValidNumberMessage(1, 19);
         MenuScreenAndOperatAFilter(vCurrentPicAndItsName);
     } 
     return ChoiceNum;
@@ -932,7 +1325,7 @@ void StartFilterProgram(vector<pair<Image, string>>& vCurrentPicAndItsName) {
     int Choice;
     ClearScreen();
 
-    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 13);
+    do { Choice = MenuScreenAndOperatAFilter(vCurrentPicAndItsName); } while (Choice != 19);
 
     Exit(vCurrentPicAndItsName);
 }
